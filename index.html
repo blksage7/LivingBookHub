@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Simple Agentics Living Books</title>
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+  <meta name="description" content="Living Books and Workbooks for the AI-Augmented Workplace">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
+  
+  <!-- Docsify Theme -->
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/docsify@4/lib/themes/vue.css">
+  
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="assets/css/custom.css">
+  
+  <!-- Stripe -->
+  <script src="https://js.stripe.com/v3/"></script>
+  
+  <!-- Font Awesome for icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  
+  <style>
+    :root {
+      --theme-color: #2c3e50;
+      --accent-color: #3498db;
+      --success-color: #27ae60;
+      --warning-color: #f39c12;
+      --danger-color: #e74c3c;
+    }
+    
+    .app-name-link img {
+      height: 40px;
+      margin-right: 10px;
+    }
+    
+    .subscription-banner {
+      background: linear-gradient(135deg, var(--theme-color), var(--accent-color));
+      color: white;
+      padding: 20px;
+      text-align: center;
+      margin-bottom: 20px;
+      border-radius: 8px;
+    }
+    
+    .subscription-banner h3 {
+      margin: 0 0 10px 0;
+      color: white;
+    }
+    
+    .subscription-banner p {
+      margin: 0 0 15px 0;
+      opacity: 0.9;
+    }
+    
+    .subscribe-btn {
+      background: var(--success-color);
+      color: white;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+      transition: all 0.3s ease;
+    }
+    
+    .subscribe-btn:hover {
+      background: #229954;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
+    }
+    
+    .access-status {
+      padding: 15px;
+      border-radius: 6px;
+      margin-bottom: 20px;
+      display: none;
+    }
+    
+    .access-status.premium {
+      background: #d4edda;
+      border: 1px solid #c3e6cb;
+      color: #155724;
+    }
+    
+    .access-status.free {
+      background: #fff3cd;
+      border: 1px solid #ffeaa7;
+      color: #856404;
+    }
+    
+    .locked-content {
+      opacity: 0.5;
+      pointer-events: none;
+      position: relative;
+    }
+    
+    .locked-content::after {
+      content: "🔒 Premium Content - Subscribe to Access";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0,0,0,0.8);
+      color: white;
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-weight: bold;
+    }
+    
+    .customer-portal {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 1000;
+    }
+    
+    .portal-btn {
+      background: var(--theme-color);
+      color: white;
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      text-decoration: none;
+      display: none;
+    }
+    
+    .portal-btn:hover {
+      background: #34495e;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">Loading...</div>
+  
+  <!-- Customer Portal -->
+  <div class="customer-portal">
+    <a href="#" id="customer-portal-btn" class="portal-btn">
+      <i class="fas fa-user-circle"></i> Manage Subscription
+    </a>
+  </div>
+  
+  <script>
+    // Stripe configuration
+    const stripe = Stripe('pk_test_YOUR_PUBLISHABLE_KEY_HERE'); // Replace with your Stripe publishable key
+    
+    // Subscription management
+    class SubscriptionManager {
+      constructor() {
+        this.isSubscribed = false;
+        this.customerId = null;
+        this.init();
+      }
+      
+      init() {
+        this.checkSubscriptionStatus();
+        this.setupEventListeners();
+      }
+      
+      checkSubscriptionStatus() {
+        // Check localStorage for subscription status
+        const subscriptionData = localStorage.getItem('subscription_data');
+        if (subscriptionData) {
+          const data = JSON.parse(subscriptionData);
+          this.isSubscribed = data.active;
+          this.customerId = data.customer_id;
+          this.updateUI();
+        }
+      }
+      
+      updateUI() {
+        const statusEl = document.querySelector('.access-status');
+        const portalBtn = document.getElementById('customer-portal-btn');
+        
+        if (this.isSubscribed) {
+          statusEl.className = 'access-status premium';
+          statusEl.innerHTML = '<i class="fas fa-check-circle"></i> Premium Access Active - Enjoy unlimited access to all Living Books and Workbooks!';
+          statusEl.style.display = 'block';
+          portalBtn.style.display = 'inline-block';
+          
+          // Remove locked content restrictions
+          document.querySelectorAll('.locked-content').forEach(el => {
+            el.classList.remove('locked-content');
+          });
+        } else {
+          statusEl.className = 'access-status free';
+          statusEl.innerHTML = '<i class="fas fa-info-circle"></i> Free Preview - Subscribe for full access to all content and regular updates!';
+          statusEl.style.display = 'block';
+          portalBtn.style.display = 'none';
+        }
+      }
+      
+      async subscribe() {
+        try {
+          // In a real implementation, this would call your backend
+          // For demo purposes, we'll simulate the subscription flow
+          const response = await fetch('/api/create-checkout-session', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              price_id: 'price_YOUR_PRICE_ID_HERE', // Replace with your Stripe price ID
+            }),
+          });
+          
+          const session = await response.json();
+          
+          // Redirect to Stripe Checkout
+          const result = await stripe.redirectToCheckout({
+            sessionId: session.id,
+          });
+          
+          if (result.error) {
+            console.error('Stripe error:', result.error);
+          }
+        } catch (error) {
+          console.error('Subscription error:', error);
+          // For demo purposes, simulate successful subscription
+          this.simulateSubscription();
+        }
+      }
+      
+      simulateSubscription() {
+        // This is for demo purposes only
+        const subscriptionData = {
+          active: true,
+          customer_id: 'cus_demo_' + Date.now(),
+          subscription_id: 'sub_demo_' + Date.now(),
+        };
+        localStorage.setItem('subscription_data', JSON.stringify(subscriptionData));
+        this.isSubscribed = true;
+        this.customerId = subscriptionData.customer_id;
+        this.updateUI();
+        alert('Demo: Subscription activated! In production, this would be handled by Stripe.');
+      }
+      
+      setupEventListeners() {
+        // Subscribe button
+        document.addEventListener('click', (e) => {
+          if (e.target.classList.contains('subscribe-btn')) {
+            e.preventDefault();
+            this.subscribe();
+          }
+        });
+        
+        // Customer portal
+        document.getElementById('customer-portal-btn').addEventListener('click', (e) => {
+          e.preventDefault();
+          this.openCustomerPortal();
+        });
+      }
+      
+      async openCustomerPortal() {
+        try {
+          // In a real implementation, this would call your backend
+          const response = await fetch('/api/create-portal-session', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              customer_id: this.customerId,
+            }),
+          });
+          
+          const session = await response.json();
+          window.open(session.url, '_blank');
+        } catch (error) {
+          console.error('Portal error:', error);
+          alert('Demo: Customer portal would open here. In production, this would redirect to Stripe Customer Portal.');
+        }
+      }
+    }
+    
+    // Initialize subscription manager
+    const subscriptionManager = new SubscriptionManager();
+    
+    // Docsify configuration
+    window.$docsify = {
+      name: 'Simple Agentics Living Books',
+      repo: 'https://github.com/yourusername/living-books',
+      homepage: 'README.md',
+      loadSidebar: true,
+      loadNavbar: true,
+      subMaxLevel: 3,
+      auto2top: true,
+      search: {
+        maxAge: 86400000,
+        paths: 'auto',
+        placeholder: 'Search Living Books...',
+        noData: 'No results found.',
+        depth: 6
+      },
+      plugins: [
+        function(hook, vm) {
+          hook.beforeEach(function(content) {
+            // Add subscription banner to main page
+            if (vm.route.path === '/') {
+              const banner = `
+                <div class="access-status"></div>
+                <div class="subscription-banner">
+                  <h3><i class="fas fa-book-open"></i> Simple Agentics Living Books</h3>
+                  <p>Get unlimited access to constantly updated books and practical workbooks for the AI-augmented workplace</p>
+                  <a href="#" class="subscribe-btn">
+                    <i class="fas fa-crown"></i> Subscribe for $7/month
+                  </a>
+                </div>
+              `;
+              return banner + content;
+            }
+            return content;
+          });
+          
+          hook.doneEach(function() {
+            // Update subscription UI after page load
+            setTimeout(() => {
+              subscriptionManager.updateUI();
+            }, 100);
+          });
+        }
+      ]
+    };
+  </script>
+  
+  <!-- Docsify core -->
+  <script src="//cdn.jsdelivr.net/npm/docsify@4"></script>
+  
+  <!-- Docsify plugins -->
+  <script src="//cdn.jsdelivr.net/npm/docsify/lib/plugins/search.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/docsify/lib/plugins/zoom-image.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/docsify-copy-code@2"></script>
+  <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-bash.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-javascript.min.js"></script>
+  
+  <!-- Custom JavaScript -->
+  <script src="assets/js/custom.js"></script>
+</body>
+</html>
+
