@@ -1,1 +1,1 @@
-"# Simple Agentics Living Books" 
+# Simple Agentics Living Books
